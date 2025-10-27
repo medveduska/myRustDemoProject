@@ -5,6 +5,8 @@ use gloo_file::File;
 use web_sys::{HtmlInputElement, Blob, Url};
 use wasm_bindgen::JsCast;
 use js_sys::{Uint8Array, Array};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 struct Flashcard {
@@ -193,6 +195,22 @@ fn app() -> Html {
         })
     };
 
+    // ---------- Randomize unknown cards ----------
+    let randomize_cards = {
+        let flashcards = flashcards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+
+        Callback::from(move |_| {
+            let mut shuffled = (*flashcards).clone();
+            let mut rng = thread_rng();
+            shuffled.shuffle(&mut rng);
+            flashcards.set(shuffled);
+            current_index.set(0);
+            stage.set(FlashcardStage::First);
+        })
+    };
+
     // ---------- Export updated CSV ----------
     let update_information = {
         let flashcards = flashcards.clone();
@@ -314,6 +332,9 @@ fn app() -> Html {
                 </button>
                 <button onclick={update_information.clone()} style="margin-left: 10px;">
                     {"Update Information 💾"}
+                </button>
+                <button onclick={randomize_cards.clone()} style="margin-left: 10px;">
+                    {"🔀 Randomize"}
                 </button>
             </div>
 
