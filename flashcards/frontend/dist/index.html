@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Language Flashcards</title>
-<link rel="modulepreload" href="/myRustDemoProject/flashcards/language-flashcards-frontend-31b41b99321e5950.js" crossorigin="anonymous" integrity="sha384-A8DBNZDSbSO0HtBzM4E8EnaMI1vQW5wij7fICwdLGYu38QEX/5zgLiTK/DNBGkfJ"><link rel="preload" href="/myRustDemoProject/flashcards/language-flashcards-frontend-31b41b99321e5950_bg.wasm" crossorigin="anonymous" integrity="sha384-4x/rH8dDcqwk1THQxNMTM7PGGJSbS3VvfE/5A8pyMxOq9aNnU6ZeSzEWGiRNFH8k" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/myRustDemoProject/language-flashcards-frontend-31b41b99321e5950.js" crossorigin="anonymous" integrity="sha384-77iSfwvSINhuAa0koOXZvJCEGWyt411EB/Hp/40q/a6Cpxs6yHZjrpm7mhXy1lai"><link rel="preload" href="/myRustDemoProject/language-flashcards-frontend-31b41b99321e5950_bg.wasm" crossorigin="anonymous" integrity="sha384-WoTapOoDjcslIS/UpLTIHE2mTafaUQUIa4hjU7I5yRg3p5K9GcQUG0ZJRmQyG8A9" as="fetch" type="application/wasm"></head>
 <body>
     <div id="root"></div>
     <script type="module">
@@ -13,8 +13,8 @@
     </script>
 
 <script type="module">
-import init, * as bindings from '/myRustDemoProject/flashcards/language-flashcards-frontend-31b41b99321e5950.js';
-const wasm = await init({ module_or_path: '/myRustDemoProject/flashcards/language-flashcards-frontend-31b41b99321e5950_bg.wasm' });
+import init, * as bindings from '/myRustDemoProject/language-flashcards-frontend-31b41b99321e5950.js';
+const wasm = await init({ module_or_path: '/myRustDemoProject/language-flashcards-frontend-31b41b99321e5950_bg.wasm' });
 
 
 window.wasmBindings = bindings;
