@@ -1,7 +1,8 @@
 use yew::prelude::*;
 use serde::Deserialize;
-use wasm_bindgen_futures::spawn_local;
-use reqwasm::http::Request;
+use gloo_file::callbacks::FileReader;
+use gloo_file::File;
+use web_sys::HtmlInputElement;
 
 #[derive(Deserialize, Clone, PartialEq)]
 struct Flashcard {
@@ -12,43 +13,72 @@ struct Flashcard {
 
 #[derive(Clone, Copy, PartialEq)]
 enum FlashcardStage {
-    Word,
-    Pinyin,
-    Translation,
+    First,
+    Second,
+    Third,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum StudyDirection {
+    Normal,   // Word -> Pinyin -> Translation
+    Reverse,  // Translation -> Pinyin -> Word
 }
 
 #[function_component(App)]
 fn app() -> Html {
     let flashcards = use_state(|| vec![]);
     let current_index = use_state(|| 0usize);
-    let stage = use_state(|| FlashcardStage::Word);
+    let stage = use_state(|| FlashcardStage::First);
+    let direction = use_state(|| StudyDirection::Normal);
+    let _reader_handle = use_state(|| None::<FileReader>);
 
-    // --- Load flashcards from backend ---
-    let load_cards = {
+    // --- File selection handler ---
+    let on_file_select = {
         let flashcards = flashcards.clone();
-        Callback::from(move |_| {
-            let flashcards = flashcards.clone();
-            spawn_local(async move {
-                let resp = Request::get("http://127.0.0.1:8080/api/import")
-                    .send()
-                    .await
-                    .unwrap()
-                    .json::<Vec<Flashcard>>()
-                    .await
-                    .unwrap();
-                flashcards.set(resp);
-            });
+        let reader_handle = _reader_handle.clone();
+
+        Callback::from(move |event: Event| {
+            let input: HtmlInputElement = event
+                .target_dyn_into()
+                .expect("Failed to cast file input");
+            if let Some(files) = input.files() {
+                if let Some(file) = files.get(0) {
+                    let file = File::from(file);
+                    let flashcards = flashcards.clone();
+                    let reader_handle = reader_handle.clone();
+
+                    let task = gloo_file::callbacks::read_as_text(&file, move |res| {
+                        if let Ok(csv_data) = res {
+                            let mut rdr = csv::ReaderBuilder::new()
+                                .has_headers(false)
+                                .from_reader(csv_data.as_bytes());
+                            let mut cards = Vec::new();
+                            for record in rdr.records() {
+                                if let Ok(r) = record {
+                                    let word = r.get(0).unwrap_or("").to_string();
+                                    let pinyin = r.get(1).map(|s| s.to_string());
+                                    let translation = r.get(2).unwrap_or("").to_string();
+                                    cards.push(Flashcard { word, pinyin, translation });
+                                }
+                            }
+                            flashcards.set(cards);
+                        }
+                    });
+
+                    reader_handle.set(Some(task));
+                }
+            }
         })
     };
 
-    // --- Cycle through flashcard stages on click ---
+    // --- Cycle within one card ---
     let on_card_click = {
         let stage = stage.clone();
         Callback::from(move |_| {
             stage.set(match *stage {
-                FlashcardStage::Word => FlashcardStage::Pinyin,
-                FlashcardStage::Pinyin => FlashcardStage::Translation,
-                FlashcardStage::Translation => FlashcardStage::Word,
+                FlashcardStage::First => FlashcardStage::Second,
+                FlashcardStage::Second => FlashcardStage::Third,
+                FlashcardStage::Third => FlashcardStage::First,
             });
         })
     };
@@ -62,7 +92,7 @@ fn app() -> Html {
             if !flashcards.is_empty() {
                 let next = (*current_index + 1) % flashcards.len();
                 current_index.set(next);
-                stage.set(FlashcardStage::Word);
+                stage.set(FlashcardStage::First);
             }
         })
     };
@@ -79,18 +109,35 @@ fn app() -> Html {
                     *current_index - 1
                 };
                 current_index.set(prev);
-                stage.set(FlashcardStage::Word);
+                stage.set(FlashcardStage::First);
             }
         })
     };
 
-    // --- Determine what to display ---
+    // --- Direction toggle button ---
+    let toggle_direction = {
+        let direction = direction.clone();
+        let stage = stage.clone();
+        Callback::from(move |_| {
+            direction.set(match *direction {
+                StudyDirection::Normal => StudyDirection::Reverse,
+                StudyDirection::Reverse => StudyDirection::Normal,
+            });
+            stage.set(FlashcardStage::First);
+        })
+    };
+
+    // --- Determine displayed text ---
     let content = if !flashcards.is_empty() {
         let card = &flashcards[*current_index];
-        let display_text = match *stage {
-            FlashcardStage::Word => card.word.clone(),
-            FlashcardStage::Pinyin => card.pinyin.clone().unwrap_or_default(),
-            FlashcardStage::Translation => card.translation.clone(),
+        let display_text = match (*direction, *stage) {
+            (StudyDirection::Normal, FlashcardStage::First) => card.word.clone(),
+            (StudyDirection::Normal, FlashcardStage::Second) => card.pinyin.clone().unwrap_or_default(),
+            (StudyDirection::Normal, FlashcardStage::Third) => card.translation.clone(),
+
+            (StudyDirection::Reverse, FlashcardStage::First) => card.translation.clone(),
+            (StudyDirection::Reverse, FlashcardStage::Second) => card.pinyin.clone().unwrap_or_default(),
+            (StudyDirection::Reverse, FlashcardStage::Third) => card.word.clone(),
         };
 
         html! {
@@ -124,14 +171,23 @@ fn app() -> Html {
             </>
         }
     } else {
-        html! { <p>{"Click 'Load Flashcards' to start."}</p> }
+        html! { <p>{"Select a CSV file to start learning."}</p> }
     };
 
-    // --- Render whole app ---
     html! {
         <div style="font-family: sans-serif; text-align: center; margin-top: 40px;">
             <h1>{"Language Flashcards 🈶"}</h1>
-            <button onclick={load_cards}>{"Load Flashcards"}</button>
+            <input type="file" accept=".csv" onchange={on_file_select}/>
+            <div style="margin-top: 15px;">
+                <button onclick={toggle_direction.clone()}>
+                    {
+                        match *direction {
+                            StudyDirection::Normal => "Switch to Translation → Pinyin → Character",
+                            StudyDirection::Reverse => "Switch to Character → Pinyin → Translation",
+                        }
+                    }
+                </button>
+            </div>
             { content }
         </div>
     }
