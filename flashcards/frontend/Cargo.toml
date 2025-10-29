@@ -14,4 +14,5 @@ csv = "1"
 web-sys = { version = "0.3", features = ["FileList", "HtmlInputElement", "Blob", "Url"] }
 js-sys = "0.3"
 rand = { version = "0.8", features = ["std"] }
+gloo-storage = "0.3.0"
 

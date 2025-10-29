@@ -7,6 +7,5 @@ Main difference from other flahcard apps is that you can import up to 3 columns 
 
 In this case I can learn Word -> -> pinyin -> Translation or Translation -> Word -> pinyin
 
-This project contains code for an BE app written in rust lang, as well as frontend written in yew.
-Cargo is used
-Fe and Be are stored as separate modules.
+This project contains code for frontend written rust and yew.
+Cargo and trunk are used
