@@ -7,6 +7,9 @@ use wasm_bindgen::JsCast;
 use js_sys::{Uint8Array, Array};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use gloo_storage::{LocalStorage, Storage};
+
+const STORAGE_KEY: &str = "flashcards_app_state";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 struct Flashcard {
@@ -17,28 +20,62 @@ struct Flashcard {
     known: bool,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum FlashcardStage {
     First,
     Second,
     Third,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum StudyDirection {
     Normal,
     Reverse,
 }
 
+#[derive(Serialize, Deserialize)]
+struct PersistedState {
+    flashcards: Vec<Flashcard>,
+    known_cards: Vec<Flashcard>,
+    current_index: usize,
+    stage: FlashcardStage,
+    direction: StudyDirection,
+}
+
+
 #[function_component(App)]
 fn app() -> Html {
-    let flashcards = use_state(|| vec![]);
-    let known_cards = use_state(|| vec![]);
-    let current_index = use_state(|| 0usize);
-    let stage = use_state(|| FlashcardStage::First);
-    let direction = use_state(|| StudyDirection::Normal);
-    let _reader_handle = use_state(|| None::<FileReader>);
+    let persisted: Option<PersistedState> = LocalStorage::get(STORAGE_KEY).ok();
 
+    let flashcards = use_state(|| persisted.as_ref().map(|p| p.flashcards.clone()).unwrap_or_default());
+    let known_cards = use_state(|| persisted.as_ref().map(|p| p.known_cards.clone()).unwrap_or_default());
+    let current_index = use_state(|| persisted.as_ref().map(|p| p.current_index).unwrap_or(0));
+    let stage = use_state(|| persisted.as_ref().map(|p| p.stage).unwrap_or(FlashcardStage::First));
+    let direction = use_state(|| persisted.as_ref().map(|p| p.direction).unwrap_or(StudyDirection::Normal));
+    let _reader_handle = use_state(|| None::<FileReader>);
+    // Auto-save to local storage whenever state changes
+    {
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+        let direction = direction.clone();
+
+        use_effect_with(
+            (flashcards.clone(), known_cards.clone(), current_index.clone(), stage.clone(), direction.clone()),
+            move |_| {
+                let state = PersistedState {
+                    flashcards: (*flashcards).clone(),
+                    known_cards: (*known_cards).clone(),
+                    current_index: *current_index,
+                    stage: *stage,
+                    direction: *direction,
+                };
+                let _ = LocalStorage::set(STORAGE_KEY, state);
+                || ()
+            },
+        );
+    }
     // ---------- File selection ----------
     let on_file_select = {
         let flashcards = flashcards.clone();
