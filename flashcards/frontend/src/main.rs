@@ -2,7 +2,7 @@ use yew::prelude::*;
 use serde::{Deserialize, Serialize};
 use gloo_file::callbacks::FileReader;
 use gloo_file::File;
-use web_sys::{HtmlInputElement, Blob, Url};
+use web_sys::{HtmlInputElement, Blob, Url, InputEvent};
 use wasm_bindgen::JsCast;
 use js_sys::{Uint8Array, Array};
 use rand::seq::SliceRandom;
@@ -248,6 +248,76 @@ fn app() -> Html {
         })
     };
 
+    // ---------- Add new flashcard page/state ----------
+    let show_add = use_state(|| false);
+    let new_word = use_state(|| String::new());
+    let new_pinyin = use_state(|| String::new());
+    let new_translation = use_state(|| String::new());
+
+    let open_add = {
+        let show_add = show_add.clone();
+        Callback::from(move |_| show_add.set(true))
+    };
+
+    let close_add = {
+        let show_add = show_add.clone();
+        Callback::from(move |_| show_add.set(false))
+    };
+
+    let oninput_new_word = {
+        let new_word = new_word.clone();
+        Callback::from(move |e: InputEvent| {
+            if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                new_word.set(input.value());
+            }
+        })
+    };
+
+    let oninput_new_pinyin = {
+        let new_pinyin = new_pinyin.clone();
+        Callback::from(move |e: InputEvent| {
+            if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                new_pinyin.set(input.value());
+            }
+        })
+    };
+
+    let oninput_new_translation = {
+        let new_translation = new_translation.clone();
+        Callback::from(move |e: InputEvent| {
+            if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                new_translation.set(input.value());
+            }
+        })
+    };
+
+    let save_new = {
+        let flashcards = flashcards.clone();
+        let new_word = new_word.clone();
+        let new_pinyin = new_pinyin.clone();
+        let new_translation = new_translation.clone();
+        let show_add = show_add.clone();
+
+        Callback::from(move |_| {
+            let mut list = (*flashcards).clone();
+            let pinyin_opt = if new_pinyin.is_empty() { None } else { Some((*new_pinyin).clone()) };
+
+            list.push(Flashcard {
+                word: (*new_word).clone(),
+                pinyin: pinyin_opt,
+                translation: (*new_translation).clone(),
+                known: false,
+            });
+
+            flashcards.set(list);
+
+            new_word.set(String::new());
+            new_pinyin.set(String::new());
+            new_translation.set(String::new());
+            show_add.set(false);
+        })
+    };
+
     // ---------- Export updated CSV ----------
     let update_information = {
         let flashcards = flashcards.clone();
@@ -373,7 +443,23 @@ fn app() -> Html {
                 <button onclick={randomize_cards.clone()} style="margin-left: 10px;">
                     {"🔀 Randomize"}
                 </button>
+                <button onclick={open_add.clone()} style="margin-left: 10px;">{"➕ Add New Flashcard"}</button>
             </div>
+
+            { if *show_add {
+                html!{
+                    <div style="margin-top:20px; padding:12px; border:1px solid #ddd; display:inline-block; text-align:left; border-radius:8px;">
+                        <h3 style="margin:0 0 8px 0;">{"Add New Flashcard"}</h3>
+                        <div style="margin-bottom:8px;"><input placeholder="Chinese character" value={(*new_word).clone()} oninput={oninput_new_word.clone()} /></div>
+                        <div style="margin-bottom:8px;"><input placeholder="Pinyin" value={(*new_pinyin).clone()} oninput={oninput_new_pinyin.clone()} /></div>
+                        <div style="margin-bottom:8px;"><input placeholder="Translation" value={(*new_translation).clone()} oninput={oninput_new_translation.clone()} /></div>
+                        <div>
+                            <button onclick={save_new.clone()}>{"Save"}</button>
+                            <button onclick={close_add.clone()} style="margin-left:8px;">{"Cancel"}</button>
+                        </div>
+                    </div>
+                }
+            } else { html!{} } }
 
             { progress_bar }
             { position_counter }
