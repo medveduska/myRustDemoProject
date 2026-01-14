@@ -142,6 +142,10 @@ fn app() -> Html {
         let datasets_list = datasets_list.clone();
         let current_dataset = current_dataset.clone();
         let show_dataset_input = show_dataset_input.clone();
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
         
         Callback::from(move |_| {
             if !new_dataset_name.is_empty() {
@@ -154,6 +158,11 @@ fn app() -> Html {
                     });
                     datasets_list.set(datasets.clone());
                     current_dataset.set((*new_dataset_name).clone());
+                    // Clear the working state for the new empty dataset
+                    flashcards.set(vec![]);
+                    known_cards.set(vec![]);
+                    current_index.set(0);
+                    stage.set(FlashcardStage::First);
                     let _ = LocalStorage::set(DATASETS_KEY, datasets);
                 }
                 new_dataset_name.set(String::new());
@@ -649,7 +658,17 @@ fn app() -> Html {
                 } }
             </div>
 
-            <input type="file" accept=".csv" onchange={on_file_select}/>
+            // File management section
+            <div style="margin: 20px 0; padding: 12px; background-color: #f5f5f5; border-radius: 8px;">
+                <h3 style="margin-top: 0;">{"📁 File Management"}</h3>
+                <div style="margin-bottom: 12px;">
+                    <input type="file" accept=".csv" onchange={on_file_select}/>
+                </div>
+                <button onclick={update_information.clone()}>
+                    {"⬇️ Download Flashcards"}
+                </button>
+            </div>
+
             <div style="margin-top: 15px;">
                 <button onclick={toggle_direction.clone()}>
                     {
@@ -658,9 +677,6 @@ fn app() -> Html {
                             StudyDirection::Reverse => "Switch to Character → Pinyin → Translation",
                         }
                     }
-                </button>
-                <button onclick={update_information.clone()} style="margin-left: 10px;">
-                    {"Update Information 💾"}
                 </button>
                 <button onclick={randomize_cards.clone()} style="margin-left: 10px;">
                     {"🔀 Randomize"}
