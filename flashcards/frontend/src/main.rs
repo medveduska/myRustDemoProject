@@ -2,7 +2,7 @@ use yew::prelude::*;
 use serde::{Deserialize, Serialize};
 use gloo_file::callbacks::FileReader;
 use gloo_file::File;
-use web_sys::{HtmlInputElement, Blob, Url, InputEvent};
+use web_sys::{HtmlInputElement, Blob, Url, InputEvent, MouseEvent};
 use wasm_bindgen::JsCast;
 use js_sys::{Uint8Array, Array};
 use rand::seq::SliceRandom;
@@ -10,6 +10,7 @@ use rand::thread_rng;
 use gloo_storage::{LocalStorage, Storage};
 
 const STORAGE_KEY: &str = "flashcards_app_state";
+const DATASETS_KEY: &str = "flashcards_datasets_list";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 struct Flashcard {
@@ -18,6 +19,13 @@ struct Flashcard {
     translation: String,
     #[serde(default)]
     known: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+struct Dataset {
+    name: String,
+    flashcards: Vec<Flashcard>,
+    known_cards: Vec<Flashcard>,
 }
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -53,6 +61,13 @@ fn app() -> Html {
     let stage = use_state(|| persisted.as_ref().map(|p| p.stage).unwrap_or(FlashcardStage::First));
     let direction = use_state(|| persisted.as_ref().map(|p| p.direction).unwrap_or(StudyDirection::Normal));
     let _reader_handle = use_state(|| None::<FileReader>);
+    
+    // Dataset management
+    let datasets: Vec<Dataset> = LocalStorage::get(DATASETS_KEY).ok().unwrap_or_default();
+    let current_dataset = use_state(|| String::new());
+    let datasets_list = use_state(move || datasets);
+    let new_dataset_name = use_state(|| String::new());
+    let show_dataset_input = use_state(|| false);
     // Auto-save to local storage whenever state changes
     {
         let flashcards = flashcards.clone();
@@ -76,6 +91,104 @@ fn app() -> Html {
             },
         );
     }
+    
+    // Load dataset when selected
+    let load_dataset = {
+        let datasets_list = datasets_list.clone();
+        let current_dataset = current_dataset.clone();
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+        
+        Callback::from(move |name: String| {
+            if let Some(dataset) = datasets_list.iter().find(|d| d.name == name) {
+                flashcards.set(dataset.flashcards.clone());
+                known_cards.set(dataset.known_cards.clone());
+                current_index.set(0);
+                stage.set(FlashcardStage::First);
+                current_dataset.set(name);
+            }
+        })
+    };
+    
+    // Autosave current dataset whenever flashcards or known_cards change
+    {
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_dataset = current_dataset.clone();
+        let datasets_list = datasets_list.clone();
+        
+        use_effect_with(
+            (flashcards.clone(), known_cards.clone(), current_dataset.clone()),
+            move |_| {
+                if !current_dataset.is_empty() {
+                    let mut datasets = (*datasets_list).clone();
+                    if let Some(dataset) = datasets.iter_mut().find(|d| d.name == *current_dataset) {
+                        dataset.flashcards = (*flashcards).clone();
+                        dataset.known_cards = (*known_cards).clone();
+                        datasets_list.set(datasets.clone());
+                        let _ = LocalStorage::set(DATASETS_KEY, datasets);
+                    }
+                }
+                || ()
+            },
+        );
+    }
+    
+    // Add new dataset
+    let add_new_dataset = {
+        let new_dataset_name = new_dataset_name.clone();
+        let datasets_list = datasets_list.clone();
+        let current_dataset = current_dataset.clone();
+        let show_dataset_input = show_dataset_input.clone();
+        
+        Callback::from(move |_| {
+            if !new_dataset_name.is_empty() {
+                let mut datasets = (*datasets_list).clone();
+                if !datasets.iter().any(|d| d.name == *new_dataset_name) {
+                    datasets.push(Dataset {
+                        name: (*new_dataset_name).clone(),
+                        flashcards: vec![],
+                        known_cards: vec![],
+                    });
+                    datasets_list.set(datasets.clone());
+                    current_dataset.set((*new_dataset_name).clone());
+                    let _ = LocalStorage::set(DATASETS_KEY, datasets);
+                }
+                new_dataset_name.set(String::new());
+                show_dataset_input.set(false);
+            }
+        })
+    };
+    
+    // Input handler for new dataset name
+    let oninput_dataset_name = {
+        let new_dataset_name = new_dataset_name.clone();
+        Callback::from(move |e: InputEvent| {
+            if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                new_dataset_name.set(input.value());
+            }
+        })
+    };
+    
+    // Delete dataset
+    let delete_dataset = {
+        let datasets_list = datasets_list.clone();
+        let current_dataset = current_dataset.clone();
+        
+        Callback::from(move |name: String| {
+            let mut datasets = (*datasets_list).clone();
+            datasets.retain(|d| d.name != name);
+            datasets_list.set(datasets.clone());
+            let _ = LocalStorage::set(DATASETS_KEY, datasets);
+            
+            if *current_dataset == name {
+                current_dataset.set(String::new());
+            }
+        })
+    };
+    
     // ---------- File selection ----------
     let on_file_select = {
         let flashcards = flashcards.clone();
@@ -183,6 +296,42 @@ fn app() -> Html {
                 let mut flash = (*flashcards).clone();
                 flash.push(card);
                 flashcards.set(flash);
+                known_cards.set(known);
+            }
+        })
+    };
+    
+    // ---------- Delete unknown flashcard ----------
+    let delete_flashcard = {
+        let flashcards = flashcards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+        
+        Callback::from(move |_: MouseEvent| {
+            if !flashcards.is_empty() {
+                let mut list = (*flashcards).clone();
+                list.remove(*current_index);
+                
+                if list.is_empty() {
+                    flashcards.set(vec![]);
+                    current_index.set(0);
+                } else {
+                    let new_idx = if *current_index >= list.len() { 0 } else { *current_index };
+                    flashcards.set(list);
+                    current_index.set(new_idx);
+                }
+                stage.set(FlashcardStage::First);
+            }
+        })
+    };
+    
+    // ---------- Delete known flashcard ----------
+    let delete_known_card = {
+        let known_cards = known_cards.clone();
+        Callback::from(move |index: usize| {
+            let mut known = (*known_cards).clone();
+            if index < known.len() {
+                known.remove(index);
                 known_cards.set(known);
             }
         })
@@ -414,6 +563,7 @@ fn app() -> Html {
                 <div style="margin-top: 10px;">
                     <button onclick={prev_card.clone()}>{"← Prev"}</button>
                     <button onclick={mark_known.clone()} style="margin: 0 10px;">{"Mark as Known ✅"}</button>
+                    <button onclick={delete_flashcard.clone()} style="margin: 0 10px; background-color: #ffebee; color: #d32f2f;">{"🗑 Delete"}</button>
                     <button onclick={next_card.clone()}>{"Next →"}</button>
                 </div>
             </>
@@ -426,6 +576,78 @@ fn app() -> Html {
     html! {
         <div style="font-family: sans-serif; text-align: center; margin-top: 40px;">
             <h1>{"Language Flashcards 🈶"}</h1>
+
+            // Dataset management section
+            <div style="margin-bottom: 20px; padding: 12px; background-color: #f5f5f5; border-radius: 8px;">
+                <h3 style="margin-top: 0;">{"📚 Datasets"}</h3>
+                <div style="margin-bottom: 10px;">
+                    { if !datasets_list.is_empty() {
+                        html! {
+                            <div>
+                                { for datasets_list.iter().map(|dataset| {
+                                    let load_dataset = load_dataset.clone();
+                                    let delete_dataset = delete_dataset.clone();
+                                    let name = dataset.name.clone();
+                                    let name_for_delete = dataset.name.clone();
+                                    let is_selected = *current_dataset == dataset.name;
+                                    html! {
+                                        <div key={dataset.name.clone()} style="display: inline-block; margin: 4px;">
+                                            <button 
+                                                onclick={Callback::from(move |_| {
+                                                    load_dataset.emit(name.clone());
+                                                })}
+                                                style={format!(
+                                                    "padding: 8px 12px; border-radius: 4px 0 0 4px; border: 2px solid {}; background-color: {}; cursor: pointer; font-weight: {};",
+                                                    if is_selected { "#2196F3" } else { "#ccc" },
+                                                    if is_selected { "#e3f2fd" } else { "white" },
+                                                    if is_selected { "bold" } else { "normal" }
+                                                )}
+                                            >
+                                                { &dataset.name }
+                                            </button>
+                                            <button 
+                                                onclick={Callback::from(move |_| {
+                                                    delete_dataset.emit(name_for_delete.clone());
+                                                })}
+                                                style="padding: 8px 8px; border-radius: 0 4px 4px 0; border: 2px solid #ccc; background-color: #ffebee; cursor: pointer; color: #d32f2f; font-weight: bold; margin-left: -2px;"
+                                                title="Delete this dataset"
+                                            >
+                                                { "🗑" }
+                                            </button>
+                                        </div>
+                                    }
+                                }) }
+                            </div>
+                        }
+                    } else {
+                        html! { <p style="color: #999;">{"No datasets yet. Create one below."}</p> }
+                    } }
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <button onclick={{
+                        let show_dataset_input = show_dataset_input.clone();
+                        Callback::from(move |_| show_dataset_input.set(!*show_dataset_input))
+                    }}>
+                        { if *show_dataset_input { "✖ Cancel" } else { "➕ New Dataset" } }
+                    </button>
+                </div>
+                { if *show_dataset_input {
+                    html! {
+                        <div style="margin-top: 10px; text-align: center;">
+                            <input 
+                                type="text"
+                                placeholder="Dataset name (e.g., 'HSK 1', 'Business Terms')"
+                                value={(*new_dataset_name).clone()}
+                                oninput={oninput_dataset_name.clone()}
+                                style="padding: 8px; width: 250px; margin-right: 8px; border-radius: 4px; border: 1px solid #ccc;"
+                            />
+                            <button onclick={add_new_dataset.clone()}>{"Create"}</button>
+                        </div>
+                    }
+                } else {
+                    html! {}
+                } }
+            </div>
 
             <input type="file" accept=".csv" onchange={on_file_select}/>
             <div style="margin-top: 15px;">
@@ -482,7 +704,11 @@ fn app() -> Html {
                             <button onclick={{
                                 let restore_card = restore_card.clone();
                                 Callback::from(move |_| restore_card.emit(i))
-                            }}>{"Restore"}</button>
+                            }}>{"↩ Restore"}</button>
+                            <button onclick={{
+                                let delete_known_card = delete_known_card.clone();
+                                Callback::from(move |_| delete_known_card.emit(i))
+                            }} style="margin-left: 5px; background-color: #ffebee; color: #d32f2f;">{"🗑 Delete"}</button>
                         </td>
                     </tr>
                 }) }
