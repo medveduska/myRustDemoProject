@@ -390,3 +390,120 @@ body {
         overflow-x: auto;
     }
 }
+
+/* ── Help modal ─────────────────────────────────────────── */
+
+.help-trigger-btn {
+    margin-top: 14px;
+}
+
+.help-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(20, 36, 58, 0.45);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 40px;
+    overflow-y: auto;
+    animation: rise-in 220ms ease-out;
+}
+
+.help-modal {
+    width: min(720px, 100%);
+    text-align: left;
+    animation: rise-in 280ms ease-out;
+}
+
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.help-modal-title {
+    font-size: 1.4rem;
+}
+
+.help-close-btn {
+    flex-shrink: 0;
+}
+
+.help-body {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.help-section {
+    padding: 4px 0 8px;
+}
+
+.help-section-title {
+    margin: 0 0 10px;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.1rem;
+    color: var(--accent-strong);
+}
+
+.help-divider {
+    border: none;
+    border-top: 1px solid var(--panel-border);
+    margin: 14px 0;
+}
+
+.help-text {
+    margin: 6px 0;
+    color: var(--text-primary);
+    line-height: 1.55;
+    font-size: 0.95rem;
+}
+
+.help-text-muted {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.help-list {
+    margin: 8px 0 8px 20px;
+    padding: 0;
+    line-height: 1.7;
+    font-size: 0.93rem;
+}
+
+.help-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.help-step-number {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.csv-format-block {
+    background: #f3f8fb;
+    border: 1px solid #cad7e3;
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin: 8px 0;
+    font-size: 0.88rem;
+    overflow-x: auto;
+}
+

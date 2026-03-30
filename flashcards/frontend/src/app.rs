@@ -9,6 +9,7 @@ use crate::components::add_flashcard_form::AddFlashcardForm;
 use crate::components::dataset_panel::DatasetPanel;
 use crate::components::file_management_panel::FileManagementPanel;
 use crate::components::flashcard_view::FlashcardView;
+use crate::components::help_panel::HelpPanel;
 use crate::components::known_cards_table::KnownCardsTable;
 use crate::components::study_toolbar::StudyToolbar;
 use crate::csv_io::{export_flashcards_csv, parse_flashcards_from_csv, trigger_csv_download};
@@ -74,6 +75,7 @@ pub fn app() -> Html {
     let new_dataset_name = use_state(String::new);
     let show_dataset_input = use_state(|| false);
     let show_add = use_state(|| false);
+    let show_help = use_state(|| false);
     let new_word = use_state(String::new);
     let new_pinyin = use_state(String::new);
     let new_translation = use_state(String::new);
@@ -431,6 +433,16 @@ pub fn app() -> Html {
         Callback::from(move |_: MouseEvent| show_add.set(true))
     };
 
+    let open_help = {
+        let show_help = show_help.clone();
+        Callback::from(move |_: MouseEvent| show_help.set(true))
+    };
+
+    let close_help = {
+        let show_help = show_help.clone();
+        Callback::from(move |_: MouseEvent| show_help.set(false))
+    };
+
     let close_add = {
         let show_add = show_add.clone();
         Callback::from(move |_: MouseEvent| show_add.set(false))
@@ -536,7 +548,14 @@ pub fn app() -> Html {
             <header class="app-header">
                 <h1 class="app-title">{"Language Flashcards 🈶"}</h1>
                 <p class="app-subtitle">{"Build your vocabulary with cleaner practice sessions and smarter review flow."}</p>
+                <button class="btn btn-secondary btn-small help-trigger-btn" onclick={open_help}>
+                    {"? Help & About"}
+                </button>
             </header>
+
+            if *show_help {
+                <HelpPanel on_close={close_help} />
+            }
 
             <DatasetPanel
                 datasets={(*datasets_list).clone()}
