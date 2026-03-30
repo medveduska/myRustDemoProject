@@ -38,6 +38,22 @@ cd .\flashcards\frontend
 trunk serve
 ```
 
+Build the production frontend bundle:
+
+```powershell
+cd .\flashcards\frontend
+trunk build --release
+```
+
+## Deployment Guidance
+
+- GitHub Pages assets must be built with `flashcards/frontend/Trunk.toml` using `public_url = "/myRustDemoProject/"`.
+- Preferred path: use `.github/workflows/deploy-pages.yml` to publish `flashcards/frontend/dist` to the `gh-pages` branch.
+- The deploy workflow must run `scripts/strip-trunk-autoreload.ps1` after `trunk build --release` to remove Trunk's injected live-reload websocket script before publishing.
+- Keep `.nojekyll` in the published `gh-pages` output.
+- If Pages must be updated manually, build from `flashcards/frontend`, run `scripts/strip-trunk-autoreload.ps1`, then copy only the contents of `flashcards/frontend/dist/` into the root of the `gh-pages` branch and push that branch.
+- Do not commit `flashcards/frontend/dist/` on development branches; it is a publish artifact only.
+
 ## Refactor Guidance
 
 - If UI code grows, split presentational sections into additional modules under `flashcards/frontend/src/`.

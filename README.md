@@ -51,6 +51,16 @@ cd .\flashcards\frontend
 trunk serve
 ```
 
+For GitHub Pages deployments from this repository, Trunk is configured with `public_url = "/myRustDemoProject/"` so generated asset URLs resolve under the repository site path.
+
+## Deployment
+
+GitHub Pages publishing is automated by [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml). Pushing changes to `master` rebuilds `flashcards/frontend` with Trunk and publishes `flashcards/frontend/dist` to the `gh-pages` branch.
+
+You can also run the workflow manually with `workflow_dispatch` if you need to republish without a new commit.
+
+Because Trunk 0.21.14 still injects a live-reload websocket client into the generated HTML for this app, the deploy workflow runs [scripts/strip-trunk-autoreload.ps1](scripts/strip-trunk-autoreload.ps1) after `trunk build --release` to remove that dev-only snippet before publishing.
+
 ## Notes
 
 - Generated output such as `target/` and `frontend/dist/` is intentionally ignored.

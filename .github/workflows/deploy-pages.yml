@@ -1,0 +1,58 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/deploy-pages.yml
+      - flashcards/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            flashcards -> target
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Build frontend
+        working-directory: flashcards/frontend
+        run: trunk build --release
+
+      - name: Strip Trunk autoreload script
+        shell: pwsh
+        run: ./scripts/strip-trunk-autoreload.ps1
+
+      - name: Disable Jekyll processing
+        run: touch flashcards/frontend/dist/.nojekyll
+
+      - name: Publish to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: flashcards/frontend/dist
+          force_orphan: true
