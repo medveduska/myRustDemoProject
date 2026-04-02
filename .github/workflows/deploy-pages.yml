@@ -46,6 +46,9 @@ jobs:
         shell: pwsh
         run: ./scripts/strip-trunk-autoreload.ps1
 
+      - name: Add CNAME for custom domain
+        run: echo 'wordcards.chinesewithbaiba.eu' > flashcards/frontend/dist/CNAME
+
       - name: Disable Jekyll processing
         run: touch flashcards/frontend/dist/.nojekyll
 

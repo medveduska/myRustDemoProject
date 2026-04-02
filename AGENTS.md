@@ -47,7 +47,7 @@ trunk build --release
 
 ## Deployment Guidance
 
-- GitHub Pages assets must be built with `flashcards/frontend/Trunk.toml` using `public_url = "/myRustDemoProject/"`.
+- GitHub Pages assets must be built with `flashcards/frontend/Trunk.toml` using `public_url = "/"` (custom domain `wordcards.chinesewithbaiba.eu` is set; no subpath needed).
 - Preferred path: use `.github/workflows/deploy-pages.yml` to publish `flashcards/frontend/dist` to the `gh-pages` branch.
 - The deploy workflow must run `scripts/strip-trunk-autoreload.ps1` after `trunk build --release` to remove Trunk's injected live-reload websocket script before publishing.
 - Keep `.nojekyll` in the published `gh-pages` output.

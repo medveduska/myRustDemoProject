@@ -51,7 +51,7 @@ cd .\flashcards\frontend
 trunk serve
 ```
 
-For GitHub Pages deployments from this repository, Trunk is configured with `public_url = "/myRustDemoProject/"` so generated asset URLs resolve under the repository site path.
+For GitHub Pages deployments from this repository, Trunk is configured with `public_url = "/"` because the site is served from the custom domain `wordcards.chinesewithbaiba.eu`.
 
 ## Deployment
 
