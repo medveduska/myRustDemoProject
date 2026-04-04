@@ -4,11 +4,11 @@ Language Flashcards is a Rust and Yew web application for studying vocabulary fr
 
 ## Features
 
-- Import UTF-8 CSV flashcards with word, optional pinyin, translation, and known state.
+- Import UTF-8 CSV flashcards with word, optional pinyin, translation, and known state into a new empty wordset.
 - Switch between normal and reverse study directions.
 - Shuffle unknown cards and progress through three reveal stages.
-- Manage multiple datasets stored in browser local storage.
-- Export the current dataset back to CSV with progress preserved.
+- Manage multiple wordsets stored in browser local storage.
+- Export the active wordset back to CSV with progress preserved at any time.
 
 ## Project Structure
 
@@ -65,4 +65,5 @@ Because Trunk 0.21.14 still injects a live-reload websocket client into the gene
 
 - Generated output such as `target/` and `frontend/dist/` is intentionally ignored.
 - The frontend crate is organized by responsibility: UI in `app.rs`, domain types in `model.rs`, persistence in `storage.rs`, and CSV handling in `csv_io.rs`.
+- Import is available only when a wordset contains no cards, preventing silent overwrites; Export is always available for the active wordset.
 

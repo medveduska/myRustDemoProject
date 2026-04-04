@@ -1,4 +1,4 @@
-use web_sys::{InputEvent, MouseEvent};
+use web_sys::{Event, InputEvent, MouseEvent};
 use yew::prelude::*;
 
 use crate::model::Dataset;
@@ -14,6 +14,10 @@ pub struct DatasetPanelProps {
     pub on_toggle_input: Callback<MouseEvent>,
     pub on_dataset_name_input: Callback<InputEvent>,
     pub on_create_dataset: Callback<MouseEvent>,
+    pub show_import: bool,
+    pub show_export: bool,
+    pub on_file_select: Callback<Event>,
+    pub on_download: Callback<MouseEvent>,
 }
 
 #[function_component(DatasetPanel)]
@@ -79,6 +83,33 @@ pub fn dataset_panel(props: &DatasetPanelProps) -> Html {
                             class="text-input"
                         />
                         <button class="btn btn-primary" onclick={props.on_create_dataset.clone()}>{"Create"}</button>
+                    </div>
+                }
+            } else {
+                html! {}
+            } }
+            { if props.show_export {
+                html! {
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" onclick={props.on_download.clone()}>
+                            {"Export Flashcards"}
+                        </button>
+                    </div>
+                }
+            } else {
+                html! {}
+            } }
+            { if props.show_import {
+                html! {
+                    <div class="import-group">
+                        <label class="input-label" for="import-flashcards-input">{"Import Flashcards"}</label>
+                        <input
+                            id="import-flashcards-input"
+                            class="file-input"
+                            type="file"
+                            accept=".csv"
+                            onchange={props.on_file_select.clone()}
+                        />
                     </div>
                 }
             } else {

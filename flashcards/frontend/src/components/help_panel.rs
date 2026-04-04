@@ -31,7 +31,7 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                             <li>{"Works entirely offline after the page loads."}</li>
                             <li>{"Progress is saved automatically between sessions."}</li>
                             <li>{"Supports Chinese characters, pinyin, and a translation field."}</li>
-                            <li>{"Export your cards at any time as a CSV file."}</li>
+                            <li>{"Export your cards at any time as a CSV file from the Wordsets panel."}</li>
                         </ul>
                     </div>
 
@@ -43,11 +43,11 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                         <div class="help-step">
                             <span class="help-step-number">{"1"}</span>
                             <div>
-                                <strong>{"Create or select a dataset"}</strong>
+                                <strong>{"Create or select a wordset"}</strong>
                                 <p class="help-text">
-                                    {"Use the Datasets panel to create a named collection of flashcards \
+                                    {"Use the Wordsets panel to create a named collection of flashcards \
                                     (e.g., \"HSK 1\" or \"Week 3 vocabulary\"). \
-                                    Click an existing dataset button to switch to it."}
+                                    Click an existing wordset button to switch to it."}
                                 </p>
                             </div>
                         </div>
@@ -57,7 +57,7 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                             <div>
                                 <strong>{"Import a CSV file"}</strong>
                                 <p class="help-text">
-                                    {"In the Import &amp; Export panel, click "}
+                                    {"After creating a new empty wordset, an Import option appears inside the Wordsets panel. Click "}
                                     <em>{"Choose File"}</em>
                                     {" and select a CSV file. \
                                     Each row should have up to four columns:"}
@@ -77,8 +77,8 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                                 </div>
                                 <p class="help-text help-text-muted">
                                     {"The file does not need a header row. \
-                                    Importing replaces the currently loaded cards — \
-                                    export first if you want to keep your progress."}
+                                    Import is only available while the wordset is empty, \
+                                    so it cannot overwrite cards you have already added."}
                                 </p>
                             </div>
                         </div>
@@ -118,9 +118,10 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                                 <strong>{"Export"}</strong>
                                 <p class="help-text">
                                     {"Click "}
-                                    <em>{"Download CSV"}</em>
-                                    {" in the Import &amp; Export panel to save all cards \
-                                    (including known/unknown status) as a CSV file for backup or sharing."}
+                                    <em>{"Export Flashcards"}</em>
+                                    {" in the Wordsets panel to save all cards \
+                                    (including known/unknown status) as a CSV file for backup or sharing. \
+                                    The export button is available whenever a wordset is selected."}
                                 </p>
                             </div>
                         </div>

@@ -7,7 +7,6 @@ use yew::prelude::*;
 
 use crate::components::add_flashcard_form::AddFlashcardForm;
 use crate::components::dataset_panel::DatasetPanel;
-use crate::components::file_management_panel::FileManagementPanel;
 use crate::components::flashcard_view::FlashcardView;
 use crate::components::help_panel::HelpPanel;
 use crate::components::known_cards_table::KnownCardsTable;
@@ -516,6 +515,9 @@ pub fn app() -> Html {
         })
     };
 
+    let show_export = !current_dataset.is_empty();
+    let show_import = show_export && flashcards.is_empty() && known_cards.is_empty();
+
     let known_total = flashcards.len() + known_cards.len();
 
     let position_counter = if !flashcards.is_empty() {
@@ -559,9 +561,8 @@ pub fn app() -> Html {
                 }}
                 on_dataset_name_input={oninput_dataset_name.clone()}
                 on_create_dataset={add_new_dataset.clone()}
-            />
-
-            <FileManagementPanel
+                show_import={show_import}
+                show_export={show_export}
                 on_file_select={on_file_select.clone()}
                 on_download={update_information.clone()}
             />
