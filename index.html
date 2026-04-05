@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Language Flashcards</title>
+    <link rel="icon" href="/favicon-21f6a40009d9a7d7.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles-6e52df2601583e49.css"/>
+<link rel="modulepreload" href="/language-flashcards-frontend-265291cae04f611.js" crossorigin="anonymous"><link rel="preload" href="/language-flashcards-frontend-265291cae04f611_bg.wasm" crossorigin="anonymous" as="fetch" type="application/wasm"></head>
+<body>
+    <div id="root"></div>
+
+<script type="module">
+import init, * as bindings from '/language-flashcards-frontend-265291cae04f611.js';
+const wasm = await init({ module_or_path: '/language-flashcards-frontend-265291cae04f611_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
