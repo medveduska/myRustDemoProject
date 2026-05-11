@@ -157,13 +157,33 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                         <div class="help-step">
                             <span class="help-step-number">{"7"}</span>
                             <div>
-                                <strong>{"Export"}</strong>
+                                <strong>{"Export the active wordset"}</strong>
                                 <p class="help-text">
                                     {"Click "}
                                     <em>{"Export Flashcards"}</em>
-                                    {" in the Wordsets panel to save all cards \
+                                    {" in the Wordsets panel to save the currently selected wordset's cards \
                                     (including known/unknown status) as a CSV file for backup or sharing. \
                                     The export button is available whenever a wordset is selected."}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="help-step">
+                            <span class="help-step-number">{"8"}</span>
+                            <div>
+                                <strong>{"Save and restore your entire progress"}</strong>
+                                <p class="help-text">
+                                    {"The "}
+                                    <em>{"Full Progress Backup"}</em>
+                                    {" section in the Wordsets panel lets you download and restore your complete app state:"}
+                                </p>
+                                <ul class="help-list">
+                                    <li><strong>{"Save All"}</strong>{" — downloads every wordset and your current study position (which card you're on, normal vs. reverse mode, etc.) as a single JSON backup file."}</li>
+                                    <li><strong>{"Load"}</strong>{" — restores your entire app state from a previously saved backup file. This replaces all current wordsets and study progress."}</li>
+                                </ul>
+                                <p class="help-text help-text-muted">
+                                    {"Use this feature to switch devices, back up your learning history, or recover after clearing browser data. \
+                                    Unlike Export (which saves only the active wordset as CSV), Save All captures everything in a portable format."}
                                 </p>
                             </div>
                         </div>

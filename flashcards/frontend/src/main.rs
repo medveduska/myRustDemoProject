@@ -1,4 +1,5 @@
 mod app;
+mod backup_io;
 mod components;
 mod csv_io;
 mod model;

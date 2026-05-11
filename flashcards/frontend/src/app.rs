@@ -2,9 +2,14 @@ use gloo_file::callbacks::FileReader;
 use gloo_file::File;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use web_sys::{HtmlInputElement, InputEvent, MouseEvent};
+use wasm_bindgen::JsCast;
+use web_sys::{Event, HtmlInputElement, InputEvent, MouseEvent};
 use yew::prelude::*;
 
+use crate::backup_io::{
+    backup_file_name, build_backup_snapshot, parse_backup_snapshot, serialize_backup_snapshot,
+    trigger_backup_download,
+};
 use crate::components::add_flashcard_form::AddFlashcardForm;
 use crate::components::dataset_panel::DatasetPanel;
 use crate::components::flashcard_view::FlashcardView;
@@ -30,6 +35,47 @@ fn display_text(card: &Flashcard, direction: StudyDirection, stage: FlashcardSta
         }
         (StudyDirection::Reverse, FlashcardStage::Third) => card.word.clone(),
     }
+}
+
+fn datasets_with_current_progress(
+    datasets: &[Dataset],
+    current_dataset: &str,
+    flashcards: &[Flashcard],
+    known_cards: &[Flashcard],
+) -> Vec<Dataset> {
+    let mut updated_datasets = datasets.to_vec();
+
+    if current_dataset.is_empty() {
+        return updated_datasets;
+    }
+
+    if let Some(dataset) = updated_datasets
+        .iter_mut()
+        .find(|dataset| dataset.name == current_dataset)
+    {
+        dataset.flashcards = flashcards.to_vec();
+        dataset.known_cards = known_cards.to_vec();
+    } else {
+        updated_datasets.push(Dataset {
+            name: current_dataset.to_string(),
+            flashcards: flashcards.to_vec(),
+            known_cards: known_cards.to_vec(),
+        });
+    }
+
+    updated_datasets
+}
+
+fn normalized_restore_state(mut state: PersistedState) -> PersistedState {
+    state.current_index = if state.flashcards.is_empty() {
+        0
+    } else {
+        state
+            .current_index
+            .min(state.flashcards.len().saturating_sub(1))
+    };
+
+    state
 }
 
 #[function_component(App)]
@@ -86,6 +132,8 @@ pub fn app() -> Html {
     let renaming_dataset = use_state(|| None::<String>);
     let rename_input = use_state(String::new);
     let show_unknown_in_table = use_state(|| false);
+    let backup_status_message = use_state(|| None::<String>);
+    let backup_status_is_error = use_state(|| false);
 
     {
         let flashcards = flashcards.clone();
@@ -323,6 +371,167 @@ pub fn app() -> Html {
                     flashcards.set(unknown);
                     known_cards.set(known);
                 }
+            });
+
+            reader_handle.set(Some(task));
+        })
+    };
+
+    let save_all_progress = {
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+        let direction = direction.clone();
+        let current_dataset = current_dataset.clone();
+        let datasets_list = datasets_list.clone();
+        let backup_status_message = backup_status_message.clone();
+        let backup_status_is_error = backup_status_is_error.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            let persisted_state = PersistedState {
+                flashcards: (*flashcards).clone(),
+                known_cards: (*known_cards).clone(),
+                current_index: *current_index,
+                stage: *stage,
+                direction: *direction,
+                current_dataset: (*current_dataset).clone(),
+            };
+            let datasets = datasets_with_current_progress(
+                &datasets_list,
+                current_dataset.as_str(),
+                &flashcards,
+                &known_cards,
+            );
+            let snapshot = build_backup_snapshot(persisted_state, datasets);
+
+            match serialize_backup_snapshot(&snapshot)
+                .map_err(|_| "Could not build the backup file.".to_string())
+                .and_then(|bytes| {
+                    trigger_backup_download(&bytes, &backup_file_name())
+                        .map_err(|_| "Could not start the backup download.".to_string())
+                }) {
+                Ok(()) => {
+                    backup_status_is_error.set(false);
+                    backup_status_message
+                        .set(Some("Full backup downloaded successfully.".to_string()));
+                }
+                Err(error) => {
+                    backup_status_is_error.set(true);
+                    backup_status_message.set(Some(error));
+                }
+            }
+        })
+    };
+
+    let open_backup_picker = {
+        let backup_status_message = backup_status_message.clone();
+        let backup_status_is_error = backup_status_is_error.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            let Some(window) = web_sys::window() else {
+                backup_status_is_error.set(true);
+                backup_status_message.set(Some("Browser window is unavailable.".to_string()));
+                return;
+            };
+            let Some(document) = window.document() else {
+                backup_status_is_error.set(true);
+                backup_status_message.set(Some("Browser document is unavailable.".to_string()));
+                return;
+            };
+            let Some(element) = document.get_element_by_id("load-progress-input") else {
+                backup_status_is_error.set(true);
+                backup_status_message.set(Some("Load control is unavailable.".to_string()));
+                return;
+            };
+
+            match element.dyn_into::<HtmlInputElement>() {
+                Ok(input) => input.click(),
+                Err(_) => {
+                    backup_status_is_error.set(true);
+                    backup_status_message
+                        .set(Some("Load control could not be activated.".to_string()));
+                }
+            }
+        })
+    };
+
+    let on_backup_file_select = {
+        let flashcards = flashcards.clone();
+        let known_cards = known_cards.clone();
+        let current_index = current_index.clone();
+        let stage = stage.clone();
+        let direction = direction.clone();
+        let current_dataset = current_dataset.clone();
+        let datasets_list = datasets_list.clone();
+        let reader_handle = reader_handle.clone();
+        let backup_status_message = backup_status_message.clone();
+        let backup_status_is_error = backup_status_is_error.clone();
+
+        Callback::from(move |event: Event| {
+            let Some(input) = event.target_dyn_into::<HtmlInputElement>() else {
+                backup_status_is_error.set(true);
+                backup_status_message
+                    .set(Some("Could not read the selected backup file.".to_string()));
+                return;
+            };
+
+            let Some(files) = input.files() else {
+                return;
+            };
+
+            let Some(file) = files.get(0) else {
+                return;
+            };
+
+            let selected_file_name = file.name();
+            input.set_value("");
+
+            let file = File::from(file);
+            let flashcards = flashcards.clone();
+            let known_cards = known_cards.clone();
+            let current_index = current_index.clone();
+            let stage = stage.clone();
+            let direction = direction.clone();
+            let current_dataset = current_dataset.clone();
+            let datasets_list = datasets_list.clone();
+            let reader_handle = reader_handle.clone();
+            let completion_reader_handle = reader_handle.clone();
+            let backup_status_message = backup_status_message.clone();
+            let backup_status_is_error = backup_status_is_error.clone();
+
+            let task = gloo_file::callbacks::read_as_text(&file, move |result| {
+                let parsed = result
+                    .map_err(|_| "Could not read the backup file.".to_string())
+                    .and_then(|json| parse_backup_snapshot(&json));
+
+                match parsed {
+                    Ok(snapshot) => {
+                        let restored_state = normalized_restore_state(snapshot.persisted_state);
+                        let restored_datasets = snapshot.datasets;
+
+                        flashcards.set(restored_state.flashcards.clone());
+                        known_cards.set(restored_state.known_cards.clone());
+                        current_index.set(restored_state.current_index);
+                        stage.set(restored_state.stage);
+                        direction.set(restored_state.direction);
+                        current_dataset.set(restored_state.current_dataset.clone());
+                        datasets_list.set(restored_datasets.clone());
+
+                        save_persisted_state(&restored_state);
+                        save_datasets(&restored_datasets);
+
+                        backup_status_is_error.set(false);
+                        backup_status_message
+                            .set(Some(format!("Backup loaded from {}.", selected_file_name)));
+                    }
+                    Err(error) => {
+                        backup_status_is_error.set(true);
+                        backup_status_message.set(Some(error));
+                    }
+                }
+
+                completion_reader_handle.set(None);
             });
 
             reader_handle.set(Some(task));
@@ -691,6 +900,11 @@ pub fn app() -> Html {
                 }}
                 on_dataset_name_input={oninput_dataset_name.clone()}
                 on_create_dataset={add_new_dataset.clone()}
+                on_save_all={save_all_progress.clone()}
+                on_open_backup_picker={open_backup_picker.clone()}
+                on_backup_file_select={on_backup_file_select.clone()}
+                backup_status_message={(*backup_status_message).clone()}
+                backup_status_is_error={*backup_status_is_error}
                 show_import={show_import}
                 show_export={show_export}
                 on_file_select={on_file_select.clone()}

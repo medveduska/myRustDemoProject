@@ -6,9 +6,10 @@ use web_sys::{Blob, Url};
 use crate::model::Flashcard;
 
 pub fn parse_flashcards_from_csv(csv_data: &str) -> Vec<Flashcard> {
+    let trimmed_data = csv_data.trim_start_matches('\u{FEFF}');
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
-        .from_reader(csv_data.as_bytes());
+        .from_reader(trimmed_data.as_bytes());
 
     reader
         .records()
@@ -40,7 +41,11 @@ pub fn export_flashcards_csv<'a>(
         let _ = writer.write_record(record);
     }
 
-    writer.into_inner()
+    let mut csv_bytes = writer.into_inner()?;
+    let mut result = Vec::with_capacity(3 + csv_bytes.len());
+    result.extend_from_slice(b"\xef\xbb\xbf");
+    result.append(&mut csv_bytes);
+    Ok(result)
 }
 
 pub fn trigger_csv_download(bytes: &[u8], file_name: &str) -> Result<(), JsValue> {

@@ -100,6 +100,45 @@ body {
     margin-top: 14px;
 }
 
+.action-section {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e2ebf2;
+}
+
+.action-title {
+    margin: 0 0 12px 0;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #49627a;
+}
+
+.action-button-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.action-description {
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.backup-status {
+    margin: 10px 0 0;
+    color: #0c6e68;
+    font-weight: 600;
+}
+
+.backup-status.is-error {
+    color: #a7332d;
+}
+
 .dataset-list {
     display: flex;
     flex-wrap: wrap;
@@ -252,6 +291,18 @@ body {
 
 .file-input {
     display: inline-block;
+}
+
+.visually-hidden-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .btn {

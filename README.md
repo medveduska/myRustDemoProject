@@ -4,11 +4,13 @@ Language Flashcards is a Rust and Yew web application for studying vocabulary fr
 
 ## Features
 
-- Import UTF-8 CSV flashcards with word, optional pinyin, translation, and known state into a new empty wordset.
-- Switch between normal and reverse study directions.
-- Shuffle unknown cards and progress through three reveal stages.
-- Manage multiple wordsets stored in browser local storage.
-- Export the active wordset back to CSV with progress preserved at any time.
+- **Multi-wordset management**: Create and organize unlimited named wordsets (e.g., "HSK 1", "Week 3 vocabulary") all stored locally in your browser.
+- **CSV import/export**: Import UTF-8 CSV files with word, optional pinyin, translation, and known state into an empty wordset. Export any wordset back to CSV with progress preserved.
+- **Full progress backup**: Download your complete app state (all wordsets and study position) as a JSON backup file, or restore from a previous backup to switch devices or recover from data loss.
+- **Flexible study modes**: Switch between normal (character → pinyin → translation) and reverse (translation → pinyin → character) directions. Shuffle card order and randomize study sessions.
+- **Three-stage reveal system**: Click a flashcard to progress through three stages (e.g., character, pinyin, meaning) at your own pace.
+- **Word Review tracking**: Mark cards as known to move them to the Word Review table. Restore or delete mastered words, and view all known and unknown words in one place.
+- **Automatic persistence**: All progress is saved automatically to browser local storage after every action. Works entirely offline after the page loads.
 
 ## Project Structure
 

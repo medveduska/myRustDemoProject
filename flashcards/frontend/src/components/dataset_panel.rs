@@ -14,6 +14,11 @@ pub struct DatasetPanelProps {
     pub on_toggle_input: Callback<MouseEvent>,
     pub on_dataset_name_input: Callback<InputEvent>,
     pub on_create_dataset: Callback<MouseEvent>,
+    pub on_save_all: Callback<MouseEvent>,
+    pub on_open_backup_picker: Callback<MouseEvent>,
+    pub on_backup_file_select: Callback<Event>,
+    pub backup_status_message: Option<String>,
+    pub backup_status_is_error: bool,
     pub show_import: bool,
     pub show_export: bool,
     pub on_file_select: Callback<Event>,
@@ -28,6 +33,18 @@ pub struct DatasetPanelProps {
 
 #[function_component(DatasetPanel)]
 pub fn dataset_panel(props: &DatasetPanelProps) -> Html {
+    let backup_status = props.backup_status_message.as_ref().map(|message| {
+        let class_name = if props.backup_status_is_error {
+            "backup-status is-error"
+        } else {
+            "backup-status"
+        };
+
+        html! {
+            <p class={class_name}>{message}</p>
+        }
+    });
+
     let dataset_list = if props.datasets.is_empty() {
         html! { <p class="muted-note">{"No wordsets yet. Create one below."}</p> }
     } else {
@@ -134,12 +151,40 @@ pub fn dataset_panel(props: &DatasetPanelProps) -> Html {
             } else {
                 html! {}
             } }
+            <div class="action-section">
+                <p class="action-title">{"Full Progress Backup"}</p>
+                <div class="action-button-row">
+                    <button class="btn btn-secondary" onclick={props.on_save_all.clone()}>
+                        {"Save All"}
+                    </button>
+                    <button class="btn btn-secondary" onclick={props.on_open_backup_picker.clone()}>
+                        {"Load"}
+                    </button>
+                </div>
+                <input
+                    id="load-progress-input"
+                    class="visually-hidden-input"
+                    type="file"
+                    accept=".json,application/json"
+                    onchange={props.on_backup_file_select.clone()}
+                />
+                <p class="action-description">
+                    {"Save All downloads every wordset and your current study position. Load replaces the current browser data with a backup file."}
+                </p>
+                { backup_status.unwrap_or_default() }
+            </div>
             { if props.show_export {
                 html! {
-                    <div class="panel-actions">
-                        <button class="btn btn-secondary" onclick={props.on_download.clone()}>
-                            {"Export Flashcards"}
-                        </button>
+                    <div class="action-section">
+                        <p class="action-title">{"Export this wordset"}</p>
+                        <div class="action-button-row">
+                            <button class="btn btn-secondary" onclick={props.on_download.clone()}>
+                                {"Export Flashcards"}
+                            </button>
+                        </div>
+                        <p class="action-description">
+                            {"Downloads the active wordset (all cards and their known/unknown status) as a CSV file."}
+                        </p>
                     </div>
                 }
             } else {

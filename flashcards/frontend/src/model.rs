@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+pub const APP_BACKUP_VERSION: u32 = 1;
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Flashcard {
     pub word: String,
     pub pinyin: Option<String>,
@@ -9,14 +11,14 @@ pub struct Flashcard {
     pub known: bool,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Dataset {
     pub name: String,
     pub flashcards: Vec<Flashcard>,
     pub known_cards: Vec<Flashcard>,
 }
 
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FlashcardStage {
     First,
     Second,
@@ -29,7 +31,7 @@ impl Default for FlashcardStage {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum StudyDirection {
     Normal,
     Reverse,
@@ -41,7 +43,7 @@ impl Default for StudyDirection {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct PersistedState {
     pub flashcards: Vec<Flashcard>,
     pub known_cards: Vec<Flashcard>,
@@ -50,4 +52,12 @@ pub struct PersistedState {
     pub direction: StudyDirection,
     #[serde(default)]
     pub current_dataset: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct AppBackupSnapshot {
+    pub version: u32,
+    pub exported_at: String,
+    pub persisted_state: PersistedState,
+    pub datasets: Vec<Dataset>,
 }
