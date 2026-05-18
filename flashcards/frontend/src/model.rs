@@ -43,6 +43,18 @@ impl Default for StudyDirection {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StudyMode {
+    Reveal,
+    Exercise,
+}
+
+impl Default for StudyMode {
+    fn default() -> Self {
+        Self::Reveal
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct PersistedState {
     pub flashcards: Vec<Flashcard>,
