@@ -3,7 +3,7 @@ use gloo_file::File;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use wasm_bindgen::JsCast;
-use web_sys::{Event, HtmlInputElement, InputEvent, MouseEvent};
+use web_sys::{Event, HtmlInputElement, InputEvent, KeyboardEvent, MouseEvent};
 use yew::prelude::*;
 
 use crate::backup_io::{
@@ -17,7 +17,7 @@ use crate::components::help_panel::HelpPanel;
 use crate::components::known_cards_table::KnownCardsTable;
 use crate::components::study_toolbar::StudyToolbar;
 use crate::csv_io::{export_flashcards_csv, parse_flashcards_from_csv, trigger_csv_download};
-use crate::model::{Dataset, Flashcard, FlashcardStage, PersistedState, StudyDirection};
+use crate::model::{Dataset, Flashcard, FlashcardStage, PersistedState, StudyDirection, StudyMode};
 use crate::storage::{load_datasets, load_persisted_state, save_datasets, save_persisted_state};
 
 fn split_flashcards(cards: Vec<Flashcard>) -> (Vec<Flashcard>, Vec<Flashcard>) {
@@ -34,6 +34,35 @@ fn display_text(card: &Flashcard, direction: StudyDirection, stage: FlashcardSta
             card.pinyin.clone().unwrap_or_default()
         }
         (StudyDirection::Reverse, FlashcardStage::Third) => card.word.clone(),
+    }
+}
+
+fn exercise_prompt(card: &Flashcard, direction: StudyDirection) -> String {
+    match direction {
+        StudyDirection::Normal => card.word.clone(),
+        StudyDirection::Reverse => card.translation.clone(),
+    }
+}
+
+fn exercise_expected_answer(card: &Flashcard, direction: StudyDirection) -> String {
+    match direction {
+        StudyDirection::Normal => card.translation.clone(),
+        StudyDirection::Reverse => card.word.clone(),
+    }
+}
+
+fn normalize_english(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+fn normalize_chinese(value: &str) -> String {
+    value.trim().to_string()
+}
+
+fn is_exercise_answer_correct(input: &str, expected: &str, direction: StudyDirection) -> bool {
+    match direction {
+        StudyDirection::Normal => normalize_english(input) == normalize_english(expected),
+        StudyDirection::Reverse => normalize_chinese(input) == normalize_chinese(expected),
     }
 }
 
@@ -134,6 +163,10 @@ pub fn app() -> Html {
     let show_unknown_in_table = use_state(|| false);
     let backup_status_message = use_state(|| None::<String>);
     let backup_status_is_error = use_state(|| false);
+    let study_mode = use_state(StudyMode::default);
+    let exercise_answer = use_state(String::new);
+    let exercise_checked = use_state(|| false);
+    let exercise_is_correct = use_state(|| false);
 
     {
         let flashcards = flashcards.clone();
@@ -203,6 +236,8 @@ pub fn app() -> Html {
         let known_cards = known_cards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |name: String| {
             if let Some(dataset) = datasets_list.iter().find(|dataset| dataset.name == name) {
@@ -210,6 +245,8 @@ pub fn app() -> Html {
                 known_cards.set(dataset.known_cards.clone());
                 current_index.set(0);
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
                 current_dataset.set(name);
             }
         })
@@ -224,6 +261,8 @@ pub fn app() -> Html {
         let known_cards = known_cards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_| {
             if !new_dataset_name.is_empty() {
@@ -243,6 +282,8 @@ pub fn app() -> Html {
                     known_cards.set(Vec::new());
                     current_index.set(0);
                     stage.set(FlashcardStage::First);
+                    exercise_answer.set(String::new());
+                    exercise_checked.set(false);
                     save_datasets(&datasets);
                 }
                 new_dataset_name.set(String::new());
@@ -267,6 +308,8 @@ pub fn app() -> Html {
         let known_cards = known_cards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |name: String| {
             let mut datasets = (*datasets_list).clone();
@@ -280,6 +323,8 @@ pub fn app() -> Html {
                 known_cards.set(Vec::new());
                 current_index.set(0);
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -345,6 +390,8 @@ pub fn app() -> Html {
         let flashcards = flashcards.clone();
         let known_cards = known_cards.clone();
         let reader_handle = reader_handle.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |event: Event| {
             let Some(input) = event.target_dyn_into::<HtmlInputElement>() else {
@@ -363,6 +410,8 @@ pub fn app() -> Html {
             let flashcards = flashcards.clone();
             let known_cards = known_cards.clone();
             let reader_handle = reader_handle.clone();
+            let exercise_answer = exercise_answer.clone();
+            let exercise_checked = exercise_checked.clone();
 
             let task = gloo_file::callbacks::read_as_text(&file, move |result| {
                 if let Ok(csv_data) = result {
@@ -370,6 +419,8 @@ pub fn app() -> Html {
                     let (known, unknown) = split_flashcards(all_cards);
                     flashcards.set(unknown);
                     known_cards.set(known);
+                    exercise_answer.set(String::new());
+                    exercise_checked.set(false);
                 }
             });
 
@@ -467,6 +518,8 @@ pub fn app() -> Html {
         let reader_handle = reader_handle.clone();
         let backup_status_message = backup_status_message.clone();
         let backup_status_is_error = backup_status_is_error.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |event: Event| {
             let Some(input) = event.target_dyn_into::<HtmlInputElement>() else {
@@ -499,6 +552,8 @@ pub fn app() -> Html {
             let completion_reader_handle = reader_handle.clone();
             let backup_status_message = backup_status_message.clone();
             let backup_status_is_error = backup_status_is_error.clone();
+            let exercise_answer = exercise_answer.clone();
+            let exercise_checked = exercise_checked.clone();
 
             let task = gloo_file::callbacks::read_as_text(&file, move |result| {
                 let parsed = result
@@ -517,6 +572,8 @@ pub fn app() -> Html {
                         direction.set(restored_state.direction);
                         current_dataset.set(restored_state.current_dataset.clone());
                         datasets_list.set(restored_datasets.clone());
+                        exercise_answer.set(String::new());
+                        exercise_checked.set(false);
 
                         save_persisted_state(&restored_state);
                         save_datasets(&restored_datasets);
@@ -554,6 +611,8 @@ pub fn app() -> Html {
         let known_cards = known_cards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             if flashcards.is_empty() {
@@ -582,12 +641,16 @@ pub fn app() -> Html {
             }
 
             stage.set(FlashcardStage::First);
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
         })
     };
 
     let restore_card = {
         let flashcards = flashcards.clone();
         let known_cards = known_cards.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |index: usize| {
             let mut known = (*known_cards).clone();
@@ -599,6 +662,8 @@ pub fn app() -> Html {
                 unknown.push(card);
                 flashcards.set(unknown);
                 known_cards.set(known);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -607,6 +672,8 @@ pub fn app() -> Html {
         let flashcards = flashcards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             if flashcards.is_empty() {
@@ -630,6 +697,8 @@ pub fn app() -> Html {
             }
 
             stage.set(FlashcardStage::First);
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
         })
     };
 
@@ -657,6 +726,8 @@ pub fn app() -> Html {
         let known_cards = known_cards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
         Callback::from(move |index: usize| {
             let mut list = (*flashcards).clone();
             if index < list.len() {
@@ -678,6 +749,8 @@ pub fn app() -> Html {
                     current_index.set(new_idx);
                 }
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -686,6 +759,8 @@ pub fn app() -> Html {
         let flashcards = flashcards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
         Callback::from(move |index: usize| {
             let mut list = (*flashcards).clone();
             if index < list.len() {
@@ -703,6 +778,8 @@ pub fn app() -> Html {
                     current_index.set(new_idx);
                 }
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -711,11 +788,15 @@ pub fn app() -> Html {
         let current_index = current_index.clone();
         let flashcards = flashcards.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             if !flashcards.is_empty() {
                 current_index.set((*current_index + 1) % flashcards.len());
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -724,6 +805,8 @@ pub fn app() -> Html {
         let current_index = current_index.clone();
         let flashcards = flashcards.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             if !flashcards.is_empty() {
@@ -734,6 +817,8 @@ pub fn app() -> Html {
                 };
                 current_index.set(prev);
                 stage.set(FlashcardStage::First);
+                exercise_answer.set(String::new());
+                exercise_checked.set(false);
             }
         })
     };
@@ -741,6 +826,8 @@ pub fn app() -> Html {
     let toggle_direction = {
         let direction = direction.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             direction.set(match *direction {
@@ -748,6 +835,23 @@ pub fn app() -> Html {
                 StudyDirection::Reverse => StudyDirection::Normal,
             });
             stage.set(FlashcardStage::First);
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
+        })
+    };
+
+    let toggle_study_mode = {
+        let study_mode = study_mode.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            study_mode.set(match *study_mode {
+                StudyMode::Reveal => StudyMode::Exercise,
+                StudyMode::Exercise => StudyMode::Reveal,
+            });
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
         })
     };
 
@@ -755,6 +859,8 @@ pub fn app() -> Html {
         let flashcards = flashcards.clone();
         let current_index = current_index.clone();
         let stage = stage.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             let mut shuffled = (*flashcards).clone();
@@ -763,6 +869,51 @@ pub fn app() -> Html {
             flashcards.set(shuffled);
             current_index.set(0);
             stage.set(FlashcardStage::First);
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
+        })
+    };
+
+    let oninput_exercise_answer = {
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
+
+        Callback::from(move |event: InputEvent| {
+            if let Some(input) = event.target_dyn_into::<HtmlInputElement>() {
+                exercise_answer.set(input.value());
+                exercise_checked.set(false);
+            }
+        })
+    };
+
+    let check_exercise_answer = {
+        let flashcards = flashcards.clone();
+        let current_index = current_index.clone();
+        let direction = direction.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
+        let exercise_is_correct = exercise_is_correct.clone();
+
+        Callback::from(move |_| {
+            let Some(card) = flashcards.get(*current_index) else {
+                return;
+            };
+            let expected = exercise_expected_answer(card, *direction);
+            let is_correct = is_exercise_answer_correct(&exercise_answer, &expected, *direction);
+
+            exercise_is_correct.set(is_correct);
+            exercise_checked.set(true);
+        })
+    };
+
+    let on_exercise_keydown = {
+        let check_exercise_answer = check_exercise_answer.clone();
+
+        Callback::from(move |event: KeyboardEvent| {
+            if event.key() == "Enter" {
+                event.prevent_default();
+                check_exercise_answer.emit(());
+            }
         })
     };
 
@@ -819,6 +970,8 @@ pub fn app() -> Html {
         let new_pinyin = new_pinyin.clone();
         let new_translation = new_translation.clone();
         let show_add = show_add.clone();
+        let exercise_answer = exercise_answer.clone();
+        let exercise_checked = exercise_checked.clone();
 
         Callback::from(move |_: MouseEvent| {
             let mut list = (*flashcards).clone();
@@ -840,6 +993,8 @@ pub fn app() -> Html {
             new_pinyin.set(String::new());
             new_translation.set(String::new());
             show_add.set(false);
+            exercise_answer.set(String::new());
+            exercise_checked.set(false);
         })
     };
 
@@ -869,9 +1024,41 @@ pub fn app() -> Html {
         html! {}
     };
 
-    let current_card_text = flashcards
-        .get(*current_index)
-        .map(|card| display_text(card, *direction, *stage));
+    let current_card = flashcards.get(*current_index);
+    let current_card_text = current_card.map(|card| match *study_mode {
+        StudyMode::Reveal => display_text(card, *direction, *stage),
+        StudyMode::Exercise => exercise_prompt(card, *direction),
+    });
+
+    let expected_answer = current_card.map(|card| exercise_expected_answer(card, *direction));
+
+    let exercise_feedback = if *study_mode == StudyMode::Exercise && *exercise_checked {
+        if *exercise_is_correct {
+            Some("Correct!".to_string())
+        } else {
+            expected_answer
+                .as_ref()
+                .map(|answer| format!("Incorrect. Correct answer: {}", answer))
+        }
+    } else {
+        None
+    };
+
+    let exercise_feedback_class = if *study_mode == StudyMode::Exercise && *exercise_checked {
+        Some(if *exercise_is_correct {
+            "is-correct"
+        } else {
+            "is-incorrect"
+        })
+    } else {
+        None
+    };
+
+    let exercise_pinyin = if *study_mode == StudyMode::Exercise && *exercise_checked {
+        current_card.and_then(|card| card.pinyin.clone())
+    } else {
+        None
+    };
 
     html! {
         <div class="app-shell">
@@ -919,6 +1106,8 @@ pub fn app() -> Html {
 
             <StudyToolbar
                 direction={*direction}
+                mode={*study_mode}
+                on_toggle_mode={toggle_study_mode.clone()}
                 on_toggle_direction={toggle_direction.clone()}
                 on_randomize={randomize_cards.clone()}
                 on_open_add={open_add.clone()}
@@ -943,8 +1132,17 @@ pub fn app() -> Html {
                 </div>
 
                 <FlashcardView
+                    mode={*study_mode}
                     card_text={current_card_text}
+                    card_state_class={exercise_feedback_class}
                     on_card_click={on_card_click.clone()}
+                    exercise_answer={(*exercise_answer).clone()}
+                    on_exercise_input={oninput_exercise_answer.clone()}
+                    on_exercise_keydown={on_exercise_keydown.clone()}
+                    on_check_answer={check_exercise_answer.clone()}
+                    exercise_feedback={exercise_feedback}
+                    exercise_feedback_class={exercise_feedback_class}
+                    exercise_pinyin={exercise_pinyin}
                     on_prev={prev_card.clone()}
                     on_mark_known={mark_known.clone()}
                     on_delete={delete_flashcard.clone()}

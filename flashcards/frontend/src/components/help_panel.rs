@@ -107,7 +107,12 @@ pub fn help_panel(props: &HelpPanelProps) -> Html {
                                     {" to move it to the Word Review table, \
                                     or use "}
                                     <em>{"Randomize"}</em>
-                                    {" to shuffle the order."}
+                                    {" to shuffle the order. You can also switch to "}
+                                    <em>{"Exercise Mode"}</em>
+                                    {" from Study Controls to type an answer instead of flipping stages. \
+                                    After pressing Enter or "}
+                                    <em>{"Check"}</em>
+                                    {", the card highlights green or red, shows the correct answer if needed, and reveals pinyin when available."}
                                 </p>
                             </div>
                         </div>
