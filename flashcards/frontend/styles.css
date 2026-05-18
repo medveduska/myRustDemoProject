@@ -420,6 +420,48 @@ body {
     box-shadow: 0 28px 46px rgba(12, 51, 87, 0.18);
 }
 
+.flashcard.is-correct {
+    border-color: rgba(36, 145, 79, 0.45);
+    box-shadow: 0 24px 42px rgba(24, 118, 62, 0.22);
+}
+
+.flashcard.is-incorrect {
+    border-color: rgba(186, 60, 45, 0.5);
+    box-shadow: 0 24px 42px rgba(138, 47, 36, 0.2);
+}
+
+.exercise-controls {
+    margin: 10px auto 0;
+    width: min(88vw, 500px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.exercise-answer-input {
+    width: 100%;
+}
+
+.exercise-feedback {
+    margin: 0;
+    font-weight: 700;
+}
+
+.exercise-feedback.is-correct {
+    color: #1d7d43;
+}
+
+.exercise-feedback.is-incorrect {
+    color: #b33d2f;
+}
+
+.exercise-pinyin {
+    margin: 0;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 .empty-note,
 .muted-note {
     color: var(--text-secondary);
